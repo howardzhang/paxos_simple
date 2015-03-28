@@ -34,10 +34,10 @@ func (acceptor *Acceptor) AcceptorLoop() {
 				switch msg.Action {
 				case "prepare":
 					
-					promised := acceptor.GetInstanceStatus(msg.Id)
+					promised := acceptor.getInstanceStatus(msg.Id)
 					if promised == nil {
 						//new instance
-						acceptor.AcceptorLog("Promising for Id: " + strconv.Itoa(msg.Id) + " Ballot N: " + strconv.Itoa(msg.Ballot))
+						acceptor.acceptorLog("Promising for Id: " + strconv.Itoa(msg.Id) + " Ballot N: " + strconv.Itoa(msg.Ballot))
 						tmpv := ProposalValue {
 							Ballot: -1,
 							Val: -1,
@@ -65,8 +65,8 @@ func (acceptor *Acceptor) AcceptorLoop() {
 						BroadcastProposeChan(promise)
 					} else {
 						if msg.Ballot > promised.Ballot {
-							acceptor.UpdateAcceptAfterPromise(msg.Id, msg.Ballot)
-							acceptor.AcceptorLog("Promising for Id: " + strconv.Itoa(msg.Id) + " Ballot N: " + strconv.Itoa(msg.Ballot) + " Value: " + strconv.Itoa(promised.Value.Val))
+							acceptor.updateAcceptAfterPromise(msg.Id, msg.Ballot)
+							acceptor.acceptorLog("Promising for Id: " + strconv.Itoa(msg.Id) + " Ballot N: " + strconv.Itoa(msg.Ballot) + " Value: " + strconv.Itoa(promised.Value.Val))
 							//boardcast promise to proposal chan
 							promise := &Proposal {
 								Action: "promise",
@@ -77,14 +77,14 @@ func (acceptor *Acceptor) AcceptorLoop() {
 							}
 							BroadcastProposeChan(promise)
 						} else {
-							acceptor.AcceptorLog("Refusing to promise for Id: " + strconv.Itoa(msg.Id) + " Ballot N: " + strconv.Itoa(msg.Ballot))
+							acceptor.acceptorLog("Refusing to promise for Id: " + strconv.Itoa(msg.Id) + " Ballot N: " + strconv.Itoa(msg.Ballot))
 						}
 					}
 				case "accept":
-					promised := acceptor.GetInstanceStatus(msg.Id)
+					promised := acceptor.getInstanceStatus(msg.Id)
 					if promised == nil {
 						// new instance.
-						acceptor.AcceptorLogF("Accepting value: %d for id: %d", msg.Value, msg.Id)
+						acceptor.acceptorLogF("Accepting value: %d for id: %d", msg.Value, msg.Id)
 						tmpv := ProposalValue {
 							Ballot: msg.Ballot,
 							Val: msg.Value,
@@ -109,9 +109,9 @@ func (acceptor *Acceptor) AcceptorLoop() {
 						BroadcastLearnChan(acceptedMsg)
 					} else {
 						if msg.Ballot >= promised.Ballot {
-							acceptor.AcceptorLogF("Accepting value: %d for id: %d ballot %d is bigger than last promised", msg.Value, msg.Id, msg.Ballot)
+							acceptor.acceptorLogF("Accepting value: %d for id: %d ballot %d is bigger than last promised", msg.Value, msg.Id, msg.Ballot)
 							//boardcast learn chan 
-							acceptor.UpdateAcceptAfterAccept(msg.Id, msg.Ballot, msg.Value)
+							acceptor.updateAcceptAfterAccept(msg.Id, msg.Ballot, msg.Value)
 							v := ProposalValue {
 								Ballot: -1,
 								Val: msg.Value,
@@ -125,7 +125,7 @@ func (acceptor *Acceptor) AcceptorLoop() {
 							}
 							BroadcastLearnChan(acceptedMsg)
 						} else {
-							acceptor.AcceptorLogF("Refusing to accept: %d for id: %d, already promised %d", msg.Value, msg.Id, promised.Ballot)
+							acceptor.acceptorLogF("Refusing to accept: %d for id: %d, already promised %d", msg.Value, msg.Id, promised.Ballot)
 						}
 					}
 					
@@ -135,7 +135,7 @@ func (acceptor *Acceptor) AcceptorLoop() {
 	}
 }
 
-func (acceptor *Acceptor) UpdateAcceptAfterPromise(id, new_ballot int) {
+func (acceptor *Acceptor) updateAcceptAfterPromise(id, new_ballot int) {
 	for i := 0; i < len(acceptor.AcceptedRecords); i++ {
 		if id == acceptor.AcceptedRecords[i].Id {
 			acceptor.AcceptedRecords[i].Promised.Ballot = new_ballot
@@ -143,7 +143,7 @@ func (acceptor *Acceptor) UpdateAcceptAfterPromise(id, new_ballot int) {
 	}
 }
 
-func (acceptor *Acceptor) UpdateAcceptAfterAccept(id, ballot, val int) {
+func (acceptor *Acceptor) updateAcceptAfterAccept(id, ballot, val int) {
 	for i := 0; i < len(acceptor.AcceptedRecords); i++ {
 		if id == acceptor.AcceptedRecords[i].Id {
 			acceptor.AcceptedRecords[i].Promised.Value = ProposalValue{
@@ -154,7 +154,7 @@ func (acceptor *Acceptor) UpdateAcceptAfterAccept(id, ballot, val int) {
 	}
 }
 
-func (acceptor *Acceptor) GetInstanceStatus(id int) (promised *PromiseRecord) {
+func (acceptor *Acceptor) getInstanceStatus(id int) (promised *PromiseRecord) {
 	// promised == nil: new instance.
 	promised = nil
 	if len(acceptor.AcceptedRecords) == 0 {
@@ -168,10 +168,10 @@ func (acceptor *Acceptor) GetInstanceStatus(id int) (promised *PromiseRecord) {
 	}
 	return
 }
-func (acceptor *Acceptor) AcceptorLogF(format string, a ...interface{}) {
-	acceptor.AcceptorLog(fmt.Sprintf(format, a ...))
+func (acceptor *Acceptor) acceptorLogF(format string, a ...interface{}) {
+	acceptor.acceptorLog(fmt.Sprintf(format, a ...))
 }
 
-func (acceptor *Acceptor) AcceptorLog(msg string) {
+func (acceptor *Acceptor) acceptorLog(msg string) {
 	acceptor.Owner.LogInfo("Acceptor: " + msg)
 }

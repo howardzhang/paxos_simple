@@ -51,23 +51,23 @@ func (proposer *Proposer)ProposerLoop() {
 			case msg := <- proposer.Owner.ProposeChan:{
 				switch msg.Action {
 				case "start_new_proposal":
-					proposer.ProposerLog(" start a proposal: " + strconv.Itoa(msg.Value.Val))
-					proposer.Propose(msg.Value.Val)
+					proposer.proposerLog(" start a proposal: " + strconv.Itoa(msg.Value.Val))
+					proposer.propose(msg.Value.Val)
 				case "promise":
-					//proposer.ProposerLog(" receive a promise!" + strconv.Itoa(msg.Value.Val))
-					isRelevant := proposer.IsPromiseRelevant(msg.Id, msg.Ballot, msg.Value, msg.AcceptorId)
+					//proposer.proposerLog(" receive a promise!" + strconv.Itoa(msg.Value.Val))
+					isRelevant := proposer.isPromiseRelevant(msg.Id, msg.Ballot, msg.Value, msg.AcceptorId)
 					count := 0
 					if isRelevant {
-						proposer.EnqueuePromise(msg.Id, msg.Ballot, msg.Value, msg.AcceptorId)
-						count = proposer.CountPromises(msg.Id, msg.Ballot)
-						proposer.ProposerLog(" New Promise!" + strconv.Itoa(count))
+						proposer.enqueuePromise(msg.Id, msg.Ballot, msg.Value, msg.AcceptorId)
+						count = proposer.countPromises(msg.Id, msg.Ballot)
+						proposer.proposerLog(" New Promise!" + strconv.Itoa(count))
 						if count < proposer.Majority {
-							proposer.ProposerLog(" Not enough promises so far for id: " + strconv.Itoa(msg.Id))
+							proposer.proposerLog(" Not enough promises so far for id: " + strconv.Itoa(msg.Id))
 						} else {
-							proposer.ProposerLog(" Got a majority of promises for id: " + strconv.Itoa(msg.Id) + " and ballot: " + strconv.Itoa(msg.Ballot))
-							val := proposer.RemoveFromWaiting(msg.Id, msg.Ballot)
+							proposer.proposerLog(" Got a majority of promises for id: " + strconv.Itoa(msg.Id) + " and ballot: " + strconv.Itoa(msg.Ballot))
+							val := proposer.removeFromWaiting(msg.Id, msg.Ballot)
 							// process promise
-							proposer.ProposerLog(" Process Promise val: " + strconv.Itoa(val.Val))
+							proposer.proposerLog(" Process Promise val: " + strconv.Itoa(val.Val))
 							inf := &Proposal{
 								Action: "process_promises",
 								Id: msg.Id,
@@ -77,17 +77,17 @@ func (proposer *Proposer)ProposerLoop() {
 							proposer.Owner.ProposeChan <- *inf
 						}
 					} else {
-						proposer.ProposerLog(" Discarded unrelevant promise!")
+						proposer.proposerLog(" Discarded unrelevant promise!")
 					}
 				case "process_promises":
-					proposer.ProposerLog(" Processing Promise!")
-					relev_promises := proposer.FilterOutPromises(msg.Id, msg.Ballot)
-					condStr, value := proposer.ProcessPromises(relev_promises)
-					proposer.ProposerLog("condStr: " + condStr + " value: " + strconv.Itoa(value))
+					proposer.proposerLog(" Processing Promise!")
+					relev_promises := proposer.filterOutPromises(msg.Id, msg.Ballot)
+					condStr, value := proposer.processPromises(relev_promises)
+					proposer.proposerLog("condStr: " + condStr + " value: " + strconv.Itoa(value))
 					switch condStr{
 					case "value_not_chosen":
 						if value == -1 {
-							proposer.ProposerLog("We promises with no previous value, sending accept " + strconv.Itoa(msg.Value.Val) + " for id " + strconv.Itoa(msg.Id))
+							proposer.proposerLog("We promises with no previous value, sending accept " + strconv.Itoa(msg.Value.Val) + " for id " + strconv.Itoa(msg.Id))
 							//boardcase accept message
 							acceptMsg := &AcceptorMsg{
 								Action: "accept",
@@ -98,46 +98,46 @@ func (proposer *Proposer)ProposerLoop() {
 							BroadcastAcceptChan(acceptMsg)
 						} else {
 							if value == msg.Value.Val {
-								proposer.ProposerLog("Now majority MyVal is best candidate, sending accept " + strconv.Itoa(msg.Value.Val) + " for id " + strconv.Itoa(msg.Id))
+								proposer.proposerLog("Now majority MyVal is best candidate, sending accept " + strconv.Itoa(msg.Value.Val) + " for id " + strconv.Itoa(msg.Id))
 								//boardcase accept message
 							} else {
-								proposer.ProposerLog("Somebody else value is best candidate, sending accept "+ strconv.Itoa(msg.Value.Val) + " for id " + strconv.Itoa(msg.Id))
-								proposer.ProposerLog("... still need to propose " + strconv.Itoa(msg.Value.Val) + " Start Over!")
+								proposer.proposerLog("Somebody else value is best candidate, sending accept "+ strconv.Itoa(msg.Value.Val) + " for id " + strconv.Itoa(msg.Id))
+								proposer.proposerLog("... still need to propose " + strconv.Itoa(msg.Value.Val) + " Start Over!")
 								//boardcase accept message
 								// re-propose myvalue
 							}
 						}
 					case "value_chosen":
 						if value == msg.Value.Val {
-							proposer.ProposerLog(" My Value " + strconv.Itoa(value) + " has been chosen in instance, id: " + strconv.Itoa(msg.Id) + " Ballot: " + strconv.Itoa(msg.Ballot))
+							proposer.proposerLog(" My Value " + strconv.Itoa(value) + " has been chosen in instance, id: " + strconv.Itoa(msg.Id) + " Ballot: " + strconv.Itoa(msg.Ballot))
 							// boardcast learn message
 						} else {
-							proposer.ProposerLog(" Another Value " + strconv.Itoa(value) + " has been chosen already for instance, id: " + strconv.Itoa(msg.Id) + " Ballot: " + strconv.Itoa(msg.Ballot))
+							proposer.proposerLog(" Another Value " + strconv.Itoa(value) + " has been chosen already for instance, id: " + strconv.Itoa(msg.Id) + " Ballot: " + strconv.Itoa(msg.Ballot))
 							// re-propose myvalue
 						}
 					}
 					
 				case "promise_collection_timeout":
 					//TODO
-					proposer.ProposerLog(" Promise Collection Time out!")
+					proposer.proposerLog(" Promise Collection Time out!")
 				case "verification_timeout":
 					//TODO
 			    case "new_majority":
 					proposer.Majority = msg.Value.Val
-					//proposer.ProposerLog(" set new majority:" + strconv.Itoa(proposer.Majority))
+					//proposer.proposerLog(" set new majority:" + strconv.Itoa(proposer.Majority))
 				//default:
-				//	proposer.ProposerLog("Unknown Message")
+				//	proposer.proposerLog("Unknown Message")
 				}
 			}
 		}
 	}
 }
 
-func (proposer *Proposer) Propose(val int) {
+func (proposer *Proposer) propose(val int) {
 	id := proposer.getNewIdAndUpdate()
 	ballot := proposer.getNextBallotNumberAndUpdate(id)
-	proposer.ProposerLog(" ProposalId: " + strconv.Itoa(id) + " Ballot N: " + strconv.Itoa(ballot))
-	proposer.SetCollectPromiseTimeout(id, ballot, val)
+	proposer.proposerLog(" ProposalId: " + strconv.Itoa(id) + " Ballot N: " + strconv.Itoa(ballot))
+	proposer.setCollectPromiseTimeout(id, ballot, val)
 	msg := &AcceptorMsg{
 		Action: "prepare",
 		Id: id,
@@ -147,19 +147,19 @@ func (proposer *Proposer) Propose(val int) {
 	BroadcastAcceptChan(msg)
 }
 
-func (proposer *Proposer) FilterOutPromises(id, ballot int) []ProposalPromise {
+func (proposer *Proposer) filterOutPromises(id, ballot int) []ProposalPromise {
 	relevant := make([]ProposalPromise,0)
 	for i := 0; i < len(proposer.Phase1Records.PromiseQueue); i++ {
 		if proposer.Phase1Records.PromiseQueue[i].Id == id &&
 			proposer.Phase1Records.PromiseQueue[i].Ballot == ballot {
-				proposer.ProposerLog("filter out promise val: " + strconv.Itoa(proposer.Phase1Records.PromiseQueue[i].Value.Val))
+				proposer.proposerLog("filter out promise val: " + strconv.Itoa(proposer.Phase1Records.PromiseQueue[i].Value.Val))
 				relevant = append(relevant, proposer.Phase1Records.PromiseQueue[i])
 		}
 	}
 	return relevant
 }
 
-func (proposer *Proposer) ProcessPromises(promises []ProposalPromise) (string, int) {
+func (proposer *Proposer) processPromises(promises []ProposalPromise) (string, int) {
 	values := getValuesSet(promises)
 	if len(values) == 1 {
 		for k,v := range values {
@@ -202,7 +202,7 @@ func getValuesSet(promises []ProposalPromise) map[int]bool {
 	return values
 }
 
-func (proposer *Proposer) EnqueuePromise(id, ballot int, value ProposalValue, acceptorId int) {
+func (proposer *Proposer) enqueuePromise(id, ballot int, value ProposalValue, acceptorId int) {
 	promise := ProposalPromise {
 		id,
 		ballot,
@@ -212,7 +212,7 @@ func (proposer *Proposer) EnqueuePromise(id, ballot int, value ProposalValue, ac
 	proposer.Phase1Records.PromiseQueue = append(proposer.Phase1Records.PromiseQueue, promise)
 }
 
-func (proposer *Proposer) RemoveFromWaiting(id, ballot int) ProposalValue {
+func (proposer *Proposer) removeFromWaiting(id, ballot int) ProposalValue {
 	
 	i := 0
 	for  ;i < len(proposer.Phase1Records.WaitingPromise); i++ {
@@ -222,13 +222,13 @@ func (proposer *Proposer) RemoveFromWaiting(id, ballot int) ProposalValue {
 		}
 	}
 	val := proposer.Phase1Records.WaitingPromise[i].Value
-	proposer.ProposerLog("WaitingPromise len: " + strconv.Itoa(len(proposer.Phase1Records.WaitingPromise)))
+	proposer.proposerLog("WaitingPromise len: " + strconv.Itoa(len(proposer.Phase1Records.WaitingPromise)))
 	proposer.Phase1Records.WaitingPromise = append(proposer.Phase1Records.WaitingPromise[:i], proposer.Phase1Records.WaitingPromise[i+1:]...)
-	proposer.ProposerLog("WaitingPromise len: " + strconv.Itoa(len(proposer.Phase1Records.WaitingPromise)))
+	proposer.proposerLog("WaitingPromise len: " + strconv.Itoa(len(proposer.Phase1Records.WaitingPromise)))
 	return val
 }
 
-func (proposer *Proposer) CountPromises(id, ballot int) int {
+func (proposer *Proposer) countPromises(id, ballot int) int {
 	count := 0
 	for i := 0; i < len(proposer.Phase1Records.PromiseQueue); i++ {
 		if proposer.Phase1Records.PromiseQueue[i].Id == id &&
@@ -239,7 +239,7 @@ func (proposer *Proposer) CountPromises(id, ballot int) int {
 	return count
 }
 
-func (proposer *Proposer) SetCollectPromiseTimeout(id, ballot, value int) {
+func (proposer *Proposer) setCollectPromiseTimeout(id, ballot, value int) {
 	time.AfterFunc(time.Second * 2, func() {
 		valstruct := ProposalValue {
 			Val:value,
@@ -252,7 +252,7 @@ func (proposer *Proposer) SetCollectPromiseTimeout(id, ballot, value int) {
 		}
 		proposer.Owner.ProposeChan <- *msg
 	})
-	proposer.ProposerLog("enqueue waiting queue, value:" + strconv.Itoa(value))
+	proposer.proposerLog("enqueue waiting queue, value:" + strconv.Itoa(value))
 	valstruct := ProposalValue {
 		Ballot: ballot,
 		Val:value,
@@ -266,8 +266,8 @@ func (proposer *Proposer) SetCollectPromiseTimeout(id, ballot, value int) {
 	proposer.Phase1Records.WaitingPromise = append(proposer.Phase1Records.WaitingPromise, pp)
 }
 
-func (proposer *Proposer) IsPromiseRelevant(id, ballot int, value ProposalValue, acceptorId int) bool{
-	waiting := proposer.IsWaitingForPromise(id, ballot)
+func (proposer *Proposer) isPromiseRelevant(id, ballot int, value ProposalValue, acceptorId int) bool{
+	waiting := proposer.isWaitingForPromise(id, ballot)
 	if waiting {
 		for i := 0; i < len(proposer.Phase1Records.PromiseQueue); i++ {
 			if proposer.Phase1Records.PromiseQueue[i].Id == id &&
@@ -283,7 +283,7 @@ func (proposer *Proposer) IsPromiseRelevant(id, ballot int, value ProposalValue,
 	}
 }
 
-func (proposer *Proposer) IsWaitingForPromise(id, ballot int) bool {
+func (proposer *Proposer) isWaitingForPromise(id, ballot int) bool {
 	for i := 0; i < len(proposer.Phase1Records.WaitingPromise); i++ {
 		if proposer.Phase1Records.WaitingPromise[i].Id == id &&
 			proposer.Phase1Records.WaitingPromise[i].Ballot == ballot {
@@ -316,12 +316,12 @@ func (proposer *Proposer) getNextBallotNumberAndUpdate(pid int) (ballot int) {
 			proposer.InstRecords = append(proposer.InstRecords, InstRecord{pid, n + 1})
 		}
 	}
-	proposer.ProposerLog(" InstRecords length: "+ strconv.Itoa(len(proposer.InstRecords)))
+	proposer.proposerLog(" InstRecords length: "+ strconv.Itoa(len(proposer.InstRecords)))
 	ballot = insertAgentIdtoBallot(proposer.Owner.Id, n)
 	return
 }
 
-func (proposer *Proposer) ProposerLog(msg string) {
+func (proposer *Proposer) proposerLog(msg string) {
 	proposer.Owner.LogInfo("Proposer: " + msg)
 }
 
